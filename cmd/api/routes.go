@@ -5,5 +5,8 @@ import "net/http"
 func (app *application) routes() http.Handler {
 	mux := http.NewServeMux()
 	mux.HandleFunc("/api/health", app.healthHandler)
+
+	// users
+	mux.HandleFunc("POST /api/users", app.createUserHandler)
 	return mux
 }
