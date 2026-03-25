@@ -1,15 +1,18 @@
 package main
 
 import (
+	"database/sql"
 	"flag"
 	"fmt"
-	"log"
 	"log/slog"
 	"net/http"
 	"os"
 
 	"github.com/joho/godotenv"
+	"github.com/joshhartwig/gatedrop/internal/database"
 	"github.com/joshhartwig/gatedrop/internal/logger"
+
+	_ "github.com/lib/pq"
 )
 
 type application struct {
@@ -18,18 +21,20 @@ type application struct {
 	debug       bool
 	logger      *slog.Logger
 	dbUrl       string
+	db          *database.Queries
 	jwtSecret   string
 }
 
 const jwtTokenExiration int = 3600
 
 func main() {
-	var app application
-
 	err := godotenv.Load()
 	if err != nil {
-		log.Panic(err)
+		fmt.Println("error loading environment variables, quitting server")
+		return
 	}
+
+	var app application
 
 	// load env vars
 	app.dbUrl = os.Getenv("DB_URL")
@@ -38,6 +43,15 @@ func main() {
 
 	// get server port from cmd line
 	flag.IntVar(&app.port, "server port", 3244, "api port")
+	flag.Parse()
+
+	db, err := sql.Open("postgres", app.dbUrl)
+	if err != nil {
+		fmt.Println("error opening db, exiting")
+		return
+	}
+
+	app.db = database.New(db)
 
 	// create our server
 	server := &http.Server{
