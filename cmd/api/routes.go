@@ -1,6 +1,10 @@
 package main
 
-import "net/http"
+import (
+	"net/http"
+
+	httpSwagger "github.com/swaggo/http-swagger"
+)
 
 func (app *application) routes() http.Handler {
 	mux := http.NewServeMux()
@@ -8,5 +12,7 @@ func (app *application) routes() http.Handler {
 
 	// users
 	mux.HandleFunc("POST /api/users", app.createUserHandler)
+
+	mux.Handle("GET /swagger/", httpSwagger.WrapHandler)
 	return mux
 }

@@ -12,6 +12,7 @@ import (
 	"github.com/joshhartwig/gatedrop/internal/database"
 	"github.com/joshhartwig/gatedrop/internal/logger"
 
+	_ "github.com/joshhartwig/gatedrop/cmd/api/docs"
 	_ "github.com/lib/pq"
 )
 
@@ -27,6 +28,11 @@ type application struct {
 
 const jwtTokenExiration int = 3600
 
+// @title GateDrop API
+// @version 1.0
+// @description API for GateDrop
+// @BasePath /api
+// @schemes http
 func main() {
 	err := godotenv.Load()
 	if err != nil {
