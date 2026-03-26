@@ -328,7 +328,7 @@ goose -dir ./sql/schema create add_users_table sql
 ### Run Migration
 
 ```bash
-goose -dir sql/schema postgres "postgres://joshuahartwig:@localhost:5432/chirpy" up
+goose -dir sql/schema postgres "postgres://pgadmin:postgres@localhost:5439/gatedrop_db" up
 ```
 
 ---
