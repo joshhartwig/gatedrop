@@ -1,0 +1,117 @@
+basePath: /api
+definitions:
+  main.CreateUserRequest:
+    properties:
+      email:
+        type: string
+      password:
+        type: string
+    type: object
+info:
+  contact: {}
+  description: API for GateDrop
+  title: GateDrop API
+  version: "1.0"
+paths:
+  /health:
+    get:
+      description: Returns API health status
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      summary: Health check
+      tags:
+      - health
+  /login:
+    post:
+      consumes:
+      - application/json
+      description: Logs in a user
+      parameters:
+      - description: User payload
+        in: body
+        name: payload
+        required: true
+        schema:
+          $ref: '#/definitions/main.CreateUserRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      summary: login user
+      tags:
+      - users
+  /refresh:
+    post:
+      consumes:
+      - application/json
+      description: refresh jwt token
+      parameters:
+      - description: User payload
+        in: body
+        name: payload
+        required: true
+        schema:
+          $ref: '#/definitions/main.CreateUserRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      summary: refresh users jwt token
+      tags:
+      - users
+  /reset-data:
+    post:
+      description: Delete all roles, refresh tokens, and users from the database.
+        Only available in development environment.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+        "500":
+          description: This route can only be ran in development
+          schema:
+            type: string
+      summary: Reset all database data
+      tags:
+      - Development
+  /users:
+    post:
+      consumes:
+      - application/json
+      description: Creates a new user account
+      parameters:
+      - description: User payload
+        in: body
+        name: payload
+        required: true
+        schema:
+          $ref: '#/definitions/main.CreateUserRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      summary: Create user
+      tags:
+      - users
+schemes:
+- http
+swagger: "2.0"

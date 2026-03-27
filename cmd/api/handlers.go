@@ -49,12 +49,14 @@ func (app *application) createUserHandler(w http.ResponseWriter, r *http.Request
 	err := json.NewDecoder(r.Body).Decode(&userReq)
 	if err != nil {
 		app.logger.Error("error decoding json", "error", err)
+		http.Error(w, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
 		return
 	}
 
 	passwordHash, err := auth.HashPassword(userReq.Password)
 	if err != nil {
 		app.logger.Error(ErrorHasingPassword.Error())
+		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 		return
 	}
 
@@ -66,10 +68,11 @@ func (app *application) createUserHandler(w http.ResponseWriter, r *http.Request
 
 	if err != nil {
 		app.logger.Error("error creating user in database", "error", err)
+		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 		return
 	}
 
-	app.WriteJSON(w, http.StatusOK, envelope{"data": userInDb}, nil)
+	app.WriteJSON(w, http.StatusCreated, envelope{"data": userInDb}, nil)
 
 }
 
@@ -87,6 +90,7 @@ func (app *application) loginUserHandler(w http.ResponseWriter, r *http.Request)
 	err := json.NewDecoder(r.Body).Decode(&login)
 	if err != nil {
 		app.logger.Error(ErrorDecodingJSON.Error())
+		http.Error(w, http.StatusText(http.StatusBadGateway), http.StatusBadRequest)
 		return
 	}
 
@@ -94,6 +98,7 @@ func (app *application) loginUserHandler(w http.ResponseWriter, r *http.Request)
 	user, err := app.db.GetUserByEmail(r.Context(), login.Email)
 	if err != nil {
 		app.logger.Error("error fetching user by email", "error", err)
+		http.Error(w, http.StatusText(http.StatusUnauthorized), http.StatusUnauthorized)
 		return
 	}
 
@@ -101,6 +106,7 @@ func (app *application) loginUserHandler(w http.ResponseWriter, r *http.Request)
 	err = auth.VerifyPasswordHash(user.PasswordHash, login.Password)
 	if err != nil {
 		app.logger.Error("error with password hashes", "error", err)
+		http.Error(w, http.StatusText(http.StatusUnauthorized), http.StatusUnauthorized)
 		return
 	}
 
@@ -112,6 +118,7 @@ func (app *application) loginUserHandler(w http.ResponseWriter, r *http.Request)
 	jwt, err := auth.CreateJWT(user.ID, app.jwtSecret, time.Duration(jwtTokenExiration))
 	if err != nil {
 		app.logger.Error("error generating jwt", "error", err)
+		http.Error(w, http.StatusText(http.StatusUnauthorized), http.StatusUnauthorized)
 		return
 	}
 
@@ -119,6 +126,7 @@ func (app *application) loginUserHandler(w http.ResponseWriter, r *http.Request)
 	refresh, err := auth.MakeRefreshToken()
 	if err != nil {
 		app.logger.Error("error generating refresh", "error", err)
+		http.Error(w, http.StatusText(http.StatusUnauthorized), http.StatusUnauthorized)
 		return
 	}
 
@@ -129,6 +137,7 @@ func (app *application) loginUserHandler(w http.ResponseWriter, r *http.Request)
 	})
 	if err != nil {
 		app.logger.Error("error creating refresh in database", "error", err)
+		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 		return
 	}
 
@@ -142,5 +151,64 @@ func (app *application) loginUserHandler(w http.ResponseWriter, r *http.Request)
 	}
 
 	app.WriteJSON(w, http.StatusAccepted, envelope{"data": userLoginResponse}, nil)
+
+}
+
+// tokenRefreshHandler godoc
+// @Summary refresh users jwt token
+// @Description refresh jwt token
+// @Tags users
+// @Accept json
+// @Produce json
+// @Param payload body CreateUserRequest true "User payload"
+// @Success 200 {object} map[string]interface{}
+// @Router /refresh [post]
+func (app *application) tokenRefreshHandler(w http.ResponseWriter, r *http.Request) {
+	token, err := auth.GetBearerToken(r.Header)
+	if err != nil {
+		app.logger.Error("error getting bearer token from header")
+		http.Error(w, http.StatusText(http.StatusUnauthorized), http.StatusUnauthorized)
+		return
+	}
+
+	tokenInDb, err := app.db.GetRefreshByToken(r.Context(), token)
+	if err != nil {
+		app.logger.Error("error getting refresh token from database")
+		http.Error(w, http.StatusText(http.StatusUnauthorized), http.StatusUnauthorized)
+		return
+	}
+
+	jwt, err := auth.CreateJWT(tokenInDb.UserID, app.jwtSecret, time.Duration(jwtTokenExiration))
+	if err != nil {
+		app.logger.Error("error creating jwt")
+		http.Error(w, http.StatusText(http.StatusUnauthorized), http.StatusUnauthorized)
+		return
+	}
+
+	app.WriteJSON(w, http.StatusCreated, envelope{"token": jwt}, nil)
+}
+
+// resetDataHandler handles requests to reset all data in the database.
+// This endpoint is only available in development environments and will delete all roles,
+// refresh tokens, and users from the database.
+// Returns an internal server error if called outside of development environment.
+// resetHandler godoc
+// @Summary Reset all database data
+// @Description Delete all roles, refresh tokens, and users from the database. Only available in development environment.
+// @Tags Development
+// @Produce json
+// @Success 200
+// @Failure 500 {object} string "This route can only be ran in development"
+// @Router /reset-data [post]
+func (app *application) resetDataHandler(w http.ResponseWriter, r *http.Request) {
+	if app.environment != "development" {
+		app.logger.Error("This route can only be ran in development")
+		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
+		return
+	}
+
+	app.db.DeleteAllRoles(r.Context())
+	app.db.DeleteAllRefreshTokens(r.Context())
+	app.db.DeleteAllUsers(r.Context())
 
 }

@@ -68,6 +68,12 @@ type Rider struct {
 	ClassID   uuid.NullUUID
 }
 
+type Role struct {
+	ID          uuid.UUID
+	Name        string
+	Description sql.NullString
+}
+
 type Season struct {
 	ID       uuid.UUID
 	Name     string
@@ -84,4 +90,9 @@ type User struct {
 	Balance      int32
 	CreatedAt    time.Time
 	UpdatedAt    time.Time
+}
+
+type UserRole struct {
+	UserID uuid.UUID
+	RoleID uuid.UUID
 }
