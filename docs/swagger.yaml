@@ -13,6 +13,24 @@ info:
   title: GateDrop API
   version: "1.0"
 paths:
+  /events:
+    get:
+      description: Retrieves all SX and MX events
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal server error
+          schema:
+            type: string
+      summary: Get all events
+      tags:
+      - events
   /health:
     get:
       description: Returns API health status

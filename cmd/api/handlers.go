@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/joshhartwig/gatedrop/internal/auth"
 	"github.com/joshhartwig/gatedrop/internal/database"
 )
@@ -192,7 +193,7 @@ func (app *application) tokenRefreshHandler(w http.ResponseWriter, r *http.Reque
 // This endpoint is only available in development environments and will delete all roles,
 // refresh tokens, and users from the database.
 // Returns an internal server error if called outside of development environment.
-// resetHandler godoc
+// resetUserDataHandler godoc
 // @Summary Reset all database data
 // @Description Delete all roles, refresh tokens, and users from the database. Only available in development environment.
 // @Tags Development
@@ -200,7 +201,7 @@ func (app *application) tokenRefreshHandler(w http.ResponseWriter, r *http.Reque
 // @Success 200
 // @Failure 500 {object} string "This route can only be ran in development"
 // @Router /reset-data [post]
-func (app *application) resetDataHandler(w http.ResponseWriter, r *http.Request) {
+func (app *application) resetUserDataHandler(w http.ResponseWriter, r *http.Request) {
 	if app.environment != "development" {
 		app.logger.Error("This route can only be ran in development")
 		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
@@ -210,5 +211,61 @@ func (app *application) resetDataHandler(w http.ResponseWriter, r *http.Request)
 	app.db.DeleteAllRoles(r.Context())
 	app.db.DeleteAllRefreshTokens(r.Context())
 	app.db.DeleteAllUsers(r.Context())
+
+}
+
+// getAllEventsHandler godoc
+// @Summary Get all events
+// @Description Retrieves all SX and MX events
+// @Tags events
+// @Produce json
+// @Success 200 {object} map[string]interface{}
+// @Failure 500 {object} string "Internal server error"
+// @Router /events [get]
+func (app *application) getAllEventsHandler(w http.ResponseWriter, r *http.Request) {
+	events, err := app.db.GetAllEvents(r.Context())
+	if err != nil {
+		app.logger.Error("error getting events: " + err.Error())
+		http.Error(w, "error getting events", http.StatusInternalServerError)
+		return
+	}
+
+	app.WriteJSON(w, http.StatusOK, envelope{"events": events}, nil)
+}
+
+// getEventsById retrieves an event by its ID from the database and returns it as JSON.
+//
+// @Summary      Get event by ID
+// @Description  Retrieves a single event using its UUID identifier
+// @Tags         events
+// @Produce      json
+// @Param        id   path      string  true  "Event ID (UUID format)"
+// @Success      200  {object}  envelope{event=model.Event}  "Event retrieved successfully"
+// @Failure      400  {string}  string  "Invalid or malformed UUID"
+// @Failure      404  {string}  string  "Event not found"
+// @Failure      500  {string}  string  "Internal server error"
+// @Router       /events/{id} [get]
+func (app *application) getEventsById(w http.ResponseWriter, r *http.Request) {
+	id := r.PathValue("id")
+	if id == "" {
+		app.logger.Error("invalid id")
+		http.Error(w, "error getting events", http.StatusInternalServerError)
+		return
+	}
+
+	uid, err := uuid.Parse(id)
+	if err != nil {
+		http.NotFound(w, r)
+		return
+	}
+
+	event, err := app.db.GetEventById(r.Context(), uid)
+	if err != nil {
+		app.logger.Error("error fetching event from database")
+		http.Error(w, http.StatusText(http.StatusNotFound), http.StatusNotFound)
+		return
+	}
+
+	app.WriteJSON(w, http.StatusOK, envelope{"event": event}, nil)
 
 }
